@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'dart:math' as math;
+import 'dart:math';
 
 void main() {
   runApp(const MyApp());
@@ -8,46 +8,21 @@ void main() {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'FlashCards',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const MyHomePage(title: 'FlashCards App'),
     );
   }
 }
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
 
   final String title;
 
@@ -59,7 +34,13 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
   late AnimationController _controller;
   late Animation<double> _animation;
   bool _isFront = true;
-  final String _gfgLogo = "https://media.geeksforgeeks.org/wp-content/uploads/20221210020032/gfglogo2-200.png";
+
+  List<FlashCard> cards = [];
+
+  FlashCard currentCard = FlashCard('New Card', 'No Content', 0);
+
+  var _textEditingController = TextEditingController();
+
 
   @override
   void initState() {
@@ -92,60 +73,147 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
     }
   }
 
+  FlashCard _getNewUncompletedCard() {
+    // WORKHERE
+    var random = Random();
+    FlashCard? c;
+    do {
+      c = cards[random.nextInt(cards.length)];
+    } while (c == null || c.st8 == 1);
+    return c;
+  }
+
+  void _addNewCard() {
+    setState(() {
+      FlashCard newCard = FlashCard('New Card', 'No Content', 0);
+      currentCard = newCard;
+    }); 
+  }
+
+  void _editCard(String f, String b, int? state) {
+    setState(() {
+      currentCard.front = f;
+      currentCard.back = b;
+      if (state != null) { currentCard.st8 = state; }
+      // DEBUG WORKHERE: re-add currentCard to the list?
+    });
+  }
+
+  void _markCardAsDone() {
+    setState(() {
+      currentCard.st8 = 1;
+      currentCard = _getNewUncompletedCard();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        leading: Container(padding: EdgeInsets.all(5), 
+          child: IconButton(
+            hoverColor: Colors.amber,
+            icon: Icon(
+              Icons.add,
+              color: Colors.white,
+            ),
+            onPressed: () {
+              _addNewCard();
+            }
+          )
+        ),
         title: Text(widget.title),
       ),
-      body: GestureDetector(
-        onTap: _flipCard,
-        child: Center(
-          child: SizedBox(
-            width: 300,
-            height: 400,
-            child: Transform(
-              transform: Matrix4.rotationY(_animation.value * math.pi),
-              alignment: Alignment.center,
-              child: _isFront ? _buildFront() : _buildBack(),
+      body: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        GestureDetector(
+          onTap: _flipCard,
+          child: Center(
+            child: SizedBox(
+              width: 300,
+              height: 400,
+              child: Transform(
+                transform: Matrix4.rotationY(_animation.value * pi),
+                alignment: Alignment.center,
+                child: _isFront ? _buildFront() : _buildBack(),
+              ),
             ),
           ),
         ),
-      ),
+      ]),
     );
   }
 
   Widget _buildFront() {
+    _textEditingController.text = currentCard.front;
     return ClipRRect(
       borderRadius: BorderRadius.circular(8.0),
-      child: Container(
-        decoration: BoxDecoration(color: Colors.blue, borderRadius: BorderRadius.circular(10)),
-        child: 
-          const Center(
-            child: Text(
-              'Front',
-              style: TextStyle(color: Colors.white, fontSize: 24),
-            ),
-          ),
-      ),
+      child: _buildCardSide(true),
     );
   }
 
   Widget _buildBack() {
+    _textEditingController.text = currentCard.back;
     return Transform(
       alignment: Alignment.center,
       transform: Matrix4.rotationY(3.14),
-      child: Container(
-        decoration: BoxDecoration(color: Colors.green, borderRadius: BorderRadius.circular(10)),
-        child: 
-          const Center(
-            child: Text(
-              'Back',
-              style: TextStyle(color: Colors.white, fontSize: 24),
-            ),
-          ),
-      ),
+      child: _buildCardSide(false),
     );
   }
+
+  Widget _buildCardSide(bool isFront) {
+    return Container(
+      decoration: BoxDecoration(
+        color: (isFront) ? Colors.blue : Colors.green, 
+        borderRadius: BorderRadius.circular(10)),
+      child: 
+        Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Expanded(child: Center(
+              child: TextField(
+                controller: _textEditingController,
+                style: TextStyle(color: Colors.white, fontSize: 24),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                onSubmitted: (value) {
+                  setState(() {
+                    if (isFront) {
+                      _editCard(value, currentCard.back, null);
+                      _textEditingController.text = currentCard.front;
+                    } else {
+                      _editCard(currentCard.front, value, null);
+                      _textEditingController.text = currentCard.back;
+                    }
+                  });
+                },
+              ),
+            )),
+            Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+              IconButton(
+                hoverColor: Colors.amber,
+                icon: Icon(
+                  Icons.check,
+                  color: Colors.white,
+                ),
+                onPressed: () {
+                  _markCardAsDone();
+                }
+              ),
+            ])
+          ],  
+        ),
+    );
+  }
+
+}
+
+
+
+class FlashCard {
+  String front = "Blank";
+  String back = "This card has not been set.";
+  int st8 = 0;
+
+  FlashCard(this.front, this.back, this.st8);
 }
