@@ -35,9 +35,10 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
   late Animation<double> _animation;
   bool _isFront = true;
 
-  List<FlashCard> cards = [];
+  List<FlashCard> cards_draw = [];
+  List<FlashCard> cards_done = [];
 
-  FlashCard currentCard = FlashCard('New Card', 'No Content', 0);
+  FlashCard currentCard = FlashCard(front:'New Card', back:'No Content', st8:2);
 
   var _textEditingController = TextEditingController();
 
@@ -74,36 +75,99 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
   }
 
   FlashCard _getNewUncompletedCard() {
-    // WORKHERE
-    var random = Random();
     FlashCard? c;
-    do {
-      c = cards[random.nextInt(cards.length)];
-    } while (c == null || c.st8 == 1);
+    if(cards_draw.length > 0) {
+      var randomI = Random().nextInt(cards_draw.length);
+      c = cards_draw.removeAt(randomI);
+      /*DEBUG*/print("Removing $c from draw.");
+    } else {
+      c = FlashCard(front:"No cards to draw.", back:"The draw pile is empty.", st8:2);
+    }
+    return c;
+  }
+
+  FlashCard _getNewCompletedCard() {
+    FlashCard? c;
+    if(cards_done.length > 0) {
+      var randomI = Random().nextInt(cards_done.length);
+      c = cards_done.removeAt(randomI);
+      /*DEBUG*/print("Removing $c from done.");
+    } else {
+      c = FlashCard(front:"No cards to draw.", back:"The done pile is empty.", st8:2);
+    }
     return c;
   }
 
   void _addNewCard() {
     setState(() {
-      FlashCard newCard = FlashCard('New Card', 'No Content', 0);
+      FlashCard newCard = FlashCard(front:'New Card', back:'No Content', st8:2);
+      _dismissCurrentCard();
       currentCard = newCard;
     }); 
   }
 
-  void _editCard(String f, String b, int? state) {
+  void _editCard(String f, String b) {
     setState(() {
       currentCard.front = f;
       currentCard.back = b;
-      if (state != null) { currentCard.st8 = state; }
-      // DEBUG WORKHERE: re-add currentCard to the list?
+      currentCard.st8 = 0;
     });
   }
 
+  void _dismissCurrentCard() {
+    setState(() {
+      if (currentCard.st8 == 0) {
+        cards_draw.add(currentCard);
+        /*DEBUG*/print("Adding currentCard to unfinished cards.");
+      } else if (currentCard.st8 == 1) {
+        /*DEBUG*/print("Adding currentCard to finished cards.");
+        cards_done.add(currentCard);
+      } else {
+        /*DEBUG*/print("Currentcard state is not 1 or 0, deleting current card.");
+      }
+    });
+  }  
+
   void _markCardAsDone() {
     setState(() {
-      currentCard.st8 = 1;
-      currentCard = _getNewUncompletedCard();
+      if (currentCard.st8 != 2) currentCard.st8 = 1;
+      _dismissAndDrawUncompleted();
+      printLists_DEBUG(); // DEBUG
     });
+  }
+
+  void _markCardAsUnDone() {
+    setState(() {
+      if (currentCard.st8 != 2) currentCard.st8 = 0;
+      _dismissAndDrawUncompleted();
+      printLists_DEBUG(); // DEBUG
+    });
+  }
+
+  void _dismissAndDrawUncompleted() {
+    _dismissCurrentCard();
+    currentCard = _getNewUncompletedCard();
+  }
+
+  void _dismissAndDrawCompleted() {
+    _dismissCurrentCard();
+    currentCard = _getNewCompletedCard();
+  }
+
+  void _deleteCard () {
+    setState(() {
+      currentCard = _getNewUncompletedCard();
+      printLists_DEBUG(); // DEBUG
+    });
+  }
+
+  void printLists_DEBUG() { // DEBUG
+    print("CurrentCard: $currentCard");
+    print("Draw pile:\n");
+    print(cards_draw);
+
+    print("Done pile:\n");
+    print(cards_done);
   }
 
   @override
@@ -112,7 +176,7 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         leading: Container(padding: EdgeInsets.all(5), 
-          child: IconButton(
+          child: IconButton( // Add new card
             hoverColor: Colors.amber,
             icon: Icon(
               Icons.add,
@@ -126,20 +190,49 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
         title: Text(widget.title),
       ),
       body: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        GestureDetector(
-          onTap: _flipCard,
-          child: Center(
-            child: SizedBox(
-              width: 300,
-              height: 400,
-              child: Transform(
-                transform: Matrix4.rotationY(_animation.value * pi),
-                alignment: Alignment.center,
-                child: _isFront ? _buildFront() : _buildBack(),
+        Expanded(child: 
+          GestureDetector(
+            onTap: _flipCard,
+            child: Center(
+              child: SizedBox(
+                width: 300,
+                height: 400,
+                child: Transform(
+                  transform: Matrix4.rotationY(_animation.value * pi),
+                  alignment: Alignment.center,
+                  child: _isFront ? _buildFront() : _buildBack(),
+                ),
               ),
             ),
           ),
         ),
+        
+        Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+          IconButton( // Mark done button
+            hoverColor: Colors.amber,
+            icon: Icon(
+              Icons.square,
+              color: Colors.grey,
+            ),
+            tooltip: "Draw from uncompleted cards.",
+            onPressed: () {
+              _dismissAndDrawUncompleted();
+            }
+          ),
+          Expanded(child: Container()),
+          IconButton( // Mark un-done button
+            hoverColor: Colors.amber,
+            icon: Icon(
+              Icons.square,
+              color: Colors.black,
+            ),
+            tooltip: "Draw from completed cards.",
+            onPressed: () {
+              _dismissAndDrawCompleted();
+            }
+          ),           
+        ])
+
       ]),
     );
   }
@@ -179,10 +272,10 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
                 onSubmitted: (value) {
                   setState(() {
                     if (isFront) {
-                      _editCard(value, currentCard.back, null);
+                      _editCard(value, currentCard.back);
                       _textEditingController.text = currentCard.front;
                     } else {
-                      _editCard(currentCard.front, value, null);
+                      _editCard(currentCard.front, value);
                       _textEditingController.text = currentCard.back;
                     }
                   });
@@ -190,7 +283,28 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
               ),
             )),
             Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-              IconButton(
+              IconButton( // Mark done button
+                hoverColor: Colors.amber,
+                icon: Icon(
+                  Icons.delete,
+                  color: Colors.white,
+                ),
+                onPressed: () {
+                  _deleteCard();
+                }
+              ),
+              Expanded(child: Container()),
+              IconButton( // Mark un-done button
+                hoverColor: Colors.amber,
+                icon: Icon(
+                  Icons.close,
+                  color: Colors.white,
+                ),
+                onPressed: () {
+                  _markCardAsUnDone();
+                }
+              ),
+              IconButton( // Mark done button
                 hoverColor: Colors.amber,
                 icon: Icon(
                   Icons.check,
@@ -199,7 +313,7 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
                 onPressed: () {
                   _markCardAsDone();
                 }
-              ),
+              ),             
             ])
           ],  
         ),
@@ -211,9 +325,14 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
 
 
 class FlashCard {
-  String front = "Blank";
-  String back = "This card has not been set.";
-  int st8 = 0;
+  String front;
+  String back;
+  int st8; // 0 = not done, 1 = done, 2 = not a real card
 
-  FlashCard(this.front, this.back, this.st8);
+  FlashCard({this.front = "Blank", this.back = "This card has not been set.", this.st8 = 0});
+
+  @override
+  String toString() {
+    return "[f=$front, b=$back, st8=${st8.toString()}]";
+  }
 }
