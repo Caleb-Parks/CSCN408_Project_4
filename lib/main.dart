@@ -34,6 +34,7 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
   late AnimationController _controller;
   late Animation<double> _animation;
   bool _isFront = true;
+  bool _isSwitched = false;
 
   List<FlashCard> cards_draw = [];
   List<FlashCard> cards_done = [];
@@ -41,6 +42,7 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
   FlashCard currentCard = FlashCard(front:'New Card', back:'No Content', st8:2);
 
   var _textEditingController = TextEditingController();
+  var _textFocusNode = FocusNode();
 
 
   @override
@@ -79,6 +81,7 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
     if(cards_draw.length > 0) {
       var randomI = Random().nextInt(cards_draw.length);
       c = cards_draw.removeAt(randomI);
+      _isSwitched = false;
       /*DEBUG*/print("Removing $c from draw.");
     } else {
       c = FlashCard(front:"No cards to draw.", back:"The draw pile is empty.", st8:2);
@@ -91,6 +94,7 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
     if(cards_done.length > 0) {
       var randomI = Random().nextInt(cards_done.length);
       c = cards_done.removeAt(randomI);
+      _isSwitched = true;
       /*DEBUG*/print("Removing $c from done.");
     } else {
       c = FlashCard(front:"No cards to draw.", back:"The done pile is empty.", st8:2);
@@ -103,6 +107,7 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
       FlashCard newCard = FlashCard(front:'New Card', back:'No Content', st8:2);
       _dismissCurrentCard();
       currentCard = newCard;
+      _isSwitched = false;
     }); 
   }
 
@@ -173,6 +178,7 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color.fromARGB(255, 223, 223, 223),
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         leading: Container(padding: EdgeInsets.all(5), 
@@ -257,18 +263,34 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
   Widget _buildCardSide(bool isFront) {
     return Container(
       decoration: BoxDecoration(
-        color: (isFront) ? Colors.blue : Colors.green, 
+        color: (isFront) ? Colors.white : Colors.white, 
         borderRadius: BorderRadius.circular(10)),
       child: 
         Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+              Expanded(child: Container()),
+              IconButton( // Mark done button
+                hoverColor: Colors.amber,
+                icon: Icon(
+                  Icons.edit,
+                  color:Color.fromARGB(255, 223, 223, 223),
+                ),
+                onPressed: () {
+                  _textFocusNode.requestFocus();
+                }
+              ),            
+            ]),
+
             Expanded(child: Center(
               child: TextField(
                 controller: _textEditingController,
-                style: TextStyle(color: Colors.white, fontSize: 24),
+                focusNode: _textFocusNode,
+                style: TextStyle(color: Colors.black, fontSize: (isFront) ? 30 : 24),
                 textAlign: TextAlign.center,
                 maxLines: 1,
+                decoration: InputDecoration(border: InputBorder.none),
                 onSubmitted: (value) {
                   setState(() {
                     if (isFront) {
@@ -282,38 +304,51 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
                 },
               ),
             )),
+
             Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-              IconButton( // Mark done button
-                hoverColor: Colors.amber,
-                icon: Icon(
-                  Icons.delete,
-                  color: Colors.white,
-                ),
-                onPressed: () {
-                  _deleteCard();
-                }
+              Visibility(
+                visible: (currentCard.st8 != 2),
+                child: IconButton( // Mark done button
+                  hoverColor: Colors.amber,
+                  icon: Icon(
+                    Icons.delete,
+                    color: const Color.fromARGB(255, 223, 223, 223),
+                  ),
+                  onPressed: () {
+                    _deleteCard();
+                  }
+                )
               ),
+
               Expanded(child: Container()),
-              IconButton( // Mark un-done button
-                hoverColor: Colors.amber,
-                icon: Icon(
-                  Icons.close,
-                  color: Colors.white,
-                ),
-                onPressed: () {
-                  _markCardAsUnDone();
-                }
-              ),
-              IconButton( // Mark done button
-                hoverColor: Colors.amber,
-                icon: Icon(
-                  Icons.check,
-                  color: Colors.white,
-                ),
-                onPressed: () {
-                  _markCardAsDone();
-                }
-              ),             
+              
+              Visibility(
+                visible: (currentCard.st8 != 2),
+                child: Transform.scale(
+                  scale: 0.8,
+                  child: Switch(
+                    value: _isSwitched,
+                    onChanged: (value) {
+                      setState(() {
+                        _isSwitched = value;
+                        if (currentCard.st8 != 2) {
+                          currentCard.st8 = (_isSwitched) ? 1 : 0;
+                        }
+                      });
+                    },
+                    activeTrackColor: Colors.green,
+                    activeColor: Colors.white,
+                    inactiveThumbColor: Colors.white,
+                    inactiveTrackColor: const Color.fromARGB(255, 223, 223, 223),
+                    trackOutlineWidth: MaterialStateProperty.resolveWith<double?>((Set<MaterialState> states) {
+                      if (states.contains(MaterialState.disabled)) {
+                        return 0;
+                      }
+                      return 0; // Use the default width.
+                    }),
+                  )
+                )
+              ),            
             ])
           ],  
         ),
